@@ -1,0 +1,65 @@
+# Haskell
+dist/
+dist-newstyle/
+*.o
+*.hi
+*.hie
+*.prof
+*.aux
+*.hp
+*.eventlog
+.stack-work/
+cabal.project.local
+cabal.project.local~
+.HTF/
+.ghc.environment.*
+.hspec-failures
+
+# Python (Arbeiter)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.mypy_cache/
+*.pyc
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# Build outputs
+/result
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.vscode/
+.hs-code/
+.hie-bios/
+
+# Local config
+config.local.yaml
+.secrets
+.env
+
+# Test outputs
+/test/output/
+/test/clips/
+/Tags/
+
+# Logs
+*.log
+/tmp/*.fifo

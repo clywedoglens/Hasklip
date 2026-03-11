@@ -1,0 +1,62 @@
+cabal-version:      3.0
+
+
+name:               Hasklip
+version:            0.1.0.0
+homepage:           https://github.com/clywedoglens/Hasklip#readme
+license:            MIT
+license-file:       LICENSE
+author:             clywedoglens
+maintainer:         trophybelt@gmail.com
+copyright:          2026 clywedoglens
+build-type:         Simple
+extra-doc-files:    CHANGELOG.md
+                    README.md
+
+executable Hasklip
+    hs-source-dirs:   src
+    main-is:          Main.hs
+    other-modules:
+                        Hasklip.Types
+                      , Hasklip.Parser
+                      , Hasklip.Validator
+
+    -- LANGUAGE extensions used by modules in this package.
+    -- other-extensions:
+
+    default-language: Haskell2010
+    build-depends:    base ^>=4.18.3.0 && < 5
+                      , yaml
+                      , aeson
+                      , text
+                      , bytestring
+    ghc-options:      -Wall
+                      -Wcompat
+                      -Widentities
+                      -Wincomplete-record-updates
+                      -Wincomplete-uni-patterns
+                      -Wmissing-export-lists
+                      -Wmissing-home-modules
+                      -Wpartial-fields
+                      -Wredundant-constraints
+
+library
+    hs-source-dirs:   src
+    exposed-modules:
+                      Hasklip.Types
+                      , Hasklip.Parser
+                      , Hasklip.Validator
+                      , Hasklip.Processor
+    default-language: Haskell2010
+    ghc-options:      -Wall
+    build-depends:
+                      base ^>=4.18.3.0 && < 5
+                      , aeson
+                      , yaml
+                      , text
+                      , bytestring
+                      , exceptions
+
+source-repository head
+  type:     git
+  location: https://github.com/clywedoglens/Hasklip
