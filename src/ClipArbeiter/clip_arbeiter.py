@@ -4,10 +4,10 @@ import os
 import json
 from dataclasses import asdict
 
-from ClipArbeiter.clip_arbeit_types import ClipArbeit, ClipArbeitInfo, ClipArbeitResult
+from clip_arbeit_types import ClipArbeit, ClipArbeitInfo, ClipArbeitResult
 from constants import *
 
-def arbeiten() -> None:
+def arbeiten():
     while True:
         try:
             arbeit = listen_for_arbeit()
@@ -23,29 +23,40 @@ def arbeiten() -> None:
 def listen_for_arbeit() -> ClipArbeit:
     print("listening for clip tasks...")
     raw_data = json.loads(read_data())
-    # currently a list of dictionary objects. the fields are key values in the dict
     if not isinstance(raw_data, list) :
         raise ValueError("Incorrect input, must be in list")
     def validate_task(raw_task: dict) -> ClipArbeitInfo | ClipArbeitResult:
-        required = {"task_id", "input_path", "output_path", "start", "end"}
+        required = {"clip_arbeit_id", "input_path", "output_path", "start", "end"}
         missing = required - set(raw_task.keys())
         if missing:
-            return ClipArbeitResult(raw_task.get("task_id", "BLANK_ID"), False, f"Missing fields: {missing}")
-        return ClipArbeitInfo(raw_task['task_id'], 
-                          raw_task['input_path'], 
-                          raw_task['output_path'], 
-                          raw_task['start'], 
-                          raw_task['end'],
-                          raw_task.get("game", ""))
-        
+            print('MISSING FIELDS')
+            arbeit_id = raw_task.get("clip_arbeit_id", "BLANK_ID")
+            msg = f"Missing fields: {missing}"
+            return ClipArbeitResult(arbeit_id, False, msg)
+        # validate the filepaths
+        input_path = CLIPS_DIR / raw_task['input_path']
+        game = raw_task.get("game", False)
+        if game:
+            output_path = CLIPS_DIR / game / raw_task['output_path']
+        else:
+            output_path = CLIPS_DIR / raw_task['output_path']
+        if not input_path.exists():
+            msg = "Input file does not exist"
+            return ClipArbeitResult(raw_task['clip_arbeit_id'], False, msg)
+        if output_path.exists():
+            msg = "Output file already exists, choose a different filename"
+            return ClipArbeitResult(raw_task['clip_arbeit_id'], False, msg)
+        return ClipArbeitInfo(raw_task['clip_arbeit_id'],
+                          str(input_path),
+                          str(output_path),
+                          raw_task['start'],
+                          raw_task['end'])
     print(f"raw_data: {raw_data}")
     tasks = [validate_task(data) for data in raw_data]
     return ClipArbeit(tasks=tasks)
 
 
 def read_data() -> str:
-    if not os.path.exists(TASKS_FIFO):
-        os.mkfifo(TASKS_FIFO)
     with open(TASKS_FIFO, 'r') as pipe:
         data = pipe.read()
         # logger.info(f'data: {data}')
@@ -55,8 +66,6 @@ def read_data() -> str:
 def write_data(data: str) -> None:
     print("writing to results pipe...")
     try:
-        if not os.path.exists(RESULTS_FIFO):
-            os.mkfifo(RESULTS_FIFO)
         with open(RESULTS_FIFO, 'w') as pipe:
             pipe.write(data)
             pipe.flush()
@@ -65,4 +74,8 @@ def write_data(data: str) -> None:
 
 
 if __name__ == "__main__":
-    arbeiten() 
+    if not os.path.exists(RESULTS_FIFO):
+        os.mkfifo(RESULTS_FIFO)
+    if not os.path.exists(TASKS_FIFO):
+        os.mkfifo(TASKS_FIFO)
+    arbeiten()
