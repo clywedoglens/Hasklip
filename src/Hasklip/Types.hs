@@ -1,14 +1,23 @@
-
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveGeneric #-}
 module Hasklip.Types where
 
 import GHC.Generics (Generic)
-import Data.Aeson (FromJSON, parseJSON, withObject, (.:), (.:?), ToJSON, toJSON, genericToJSON, defaultOptions, fieldLabelModifier, camelTo2)
+import Data.Aeson (
+    FromJSON
+    , parseJSON
+    , withObject
+    , (.:)
+    , (.:?)
+    , ToJSON
+    , toJSON
+    , genericToJSON
+    , defaultOptions
+    , fieldLabelModifier
+    , camelTo2)
 import Data.Aeson.Types (Parser)
 import qualified Data.Text as T
-
 
 data Config = Config
     {
@@ -22,53 +31,53 @@ newtype Manifest = Manifest { manifest_tasks :: [Task] } deriving (Show, Eq)
 
 instance FromJSON Manifest where
     parseJSON = withObject "Manifest" $ \v -> do
-      tasks <- v .: "tasks" :: Parser [Task]
-      pure Manifest{..}
+        tasks <- v .: "tasks" :: Parser [Task]
+        pure Manifest{manifest_tasks=tasks}
 
 -- | An operation to perform
 data Task 
     = -- | Clip a video
-      ClipTask 
-        T.Text            -- ^ Task id
-        T.Text            -- ^ Input filepath
-        T.Text            -- ^ Output filepath
-        Int               -- ^ Start time in seconds
-        Int               -- ^ End time in seconds
-        (Maybe T.Text)    -- ^ Game
-        (Maybe [T.Text])  -- ^ Tags 
+        ClipTask 
+            T.Text            -- ^ Task id
+            T.Text            -- ^ Input filepath
+            T.Text            -- ^ Output filepath
+            Int               -- ^ Start time in seconds
+            Int               -- ^ End time in seconds
+            (Maybe T.Text)    -- ^ Game
+            (Maybe [T.Text])  -- ^ Tags 
     | -- | Tag an existing clip
-      TagTask 
-        T.Text    -- ^ Task id
-        T.Text    -- ^ Clip filepath
-        [T.Text]  -- ^ Tags
+        TagTask 
+            T.Text    -- ^ Task id
+            T.Text    -- ^ Clip filepath
+            [T.Text]  -- ^ Tags
     | -- | Manage existing clips
-      ManageTask 
-        T.Text  -- ^ Task id
-        T.Text  -- ^ Clip filepath
-        T.Text  -- ^ Operation to perform (might be changed to a type)
+        ManageTask 
+            T.Text  -- ^ Task id
+            T.Text  -- ^ Clip filepath
+            T.Text  -- ^ Operation to perform (might be changed to a type)
     deriving (Show, Eq)
 
 instance FromJSON Task where
     parseJSON = withObject "Task" $ \v -> do
-      typ <- v .: "type" :: Parser T.Text
-      case typ of
-        "clip"   -> ClipTask
-          <$> v .:  "id"
-          <*> v .:  "input"
-          <*> v .:  "output"
-          <*> v .:  "start"
-          <*> v .:  "end"
-          <*> v .:? "game"
-          <*> v .:? "tags"
-        "tag"    -> TagTask
-          <$> v .: "id"
-          <*> v .: "clip"
-          <*> v .: "tags"
-        "manage" -> ManageTask
-          <$> v .: "id"
-          <*> v .: "clip"
-          <*> v .: "operation"
-        _        -> fail $ "Unknown task type: " ++ show typ
+        typ <- v .: "type" :: Parser T.Text
+        case typ of
+            "clip"   -> ClipTask
+                <$> v .:  "id"
+                <*> v .:  "input"
+                <*> v .:  "output"
+                <*> v .:  "start"
+                <*> v .:  "end"
+                <*> v .:? "game"
+                <*> v .:? "tags"
+            "tag"    -> TagTask
+                <$> v .: "id"
+                <*> v .: "clip"
+                <*> v .: "tags"
+            "manage" -> ManageTask
+                <$> v .: "id"
+                <*> v .: "clip"
+                <*> v .: "operation"
+            _        -> fail $ "Unknown task type: " ++ show typ
 
 data ParseError
     = FileError T.Text
@@ -86,12 +95,12 @@ data TaskError
 
 data ClipArbeit = ClipArbeit
     {
-      clipArbeit_clipArbeitId :: T.Text
-    , clipArbeit_inputPath    :: T.Text
-    , clipArbeit_outputPath   :: T.Text
-    , clipArbeit_start        :: Int
-    , clipArbeit_end          :: Int
-    , clipArbeit_game         :: T.Text
+      clipArbeitId :: T.Text
+    , inputPath    :: T.Text
+    , outputPath   :: T.Text
+    , start        :: Int
+    , end          :: Int
+    , game         :: T.Text
     } deriving (Generic)
 
 instance ToJSON ClipArbeit where
@@ -107,18 +116,18 @@ data MgmtArbeit = MgmtArbeit
 data ArbeitResult 
     = Erfolg T.Text 
     | Fehler T.Text T.Text
-    | Nichts
     deriving (Show, Generic)
 
 instance FromJSON ArbeitResult where
     parseJSON = withObject "ArbeitResult" $ \v -> do
-      success <- v .: "success" :: Parser Bool
-      taskId <- v .: "task_id"  :: Parser T.Text
-      if success
-        then return (Erfolg taskId)
-        else do
-          msg <- v .: "message"
-          return (Fehler taskId msg)
+        success <- v .: "success" :: Parser Bool
+        taskId <- v .: "task_id"  :: Parser T.Text
+        if success
+            then return $ Erfolg taskId
+            else do
+                msg <- v .: "message"
+                return $ Fehler taskId msg
+
 data QueryInfo 
     = -- | Clip a video
       ClipQuery ClipFields
@@ -129,20 +138,26 @@ data QueryInfo
     deriving (Show, Eq)
 
 data ClipFields = ClipFields
+    T.Text            -- ^ id
     T.Text            -- ^ Filepath
     Int               -- ^ Duration in seconds
     (Maybe T.Text)    -- ^ Game
     (Maybe [T.Text])  -- ^ Tags
+    deriving (Show, Eq)
 
-data TagFields = TagFields 
+data TagFields = TagFields
+    T.Text            -- ^ id
     T.Text            -- ^ Clip filepath
     [T.Text]          -- ^ Tags
+    deriving (Show, Eq)
 
 data ManageFields = ManageFields
+    T.Text            -- ^ id
     T.Text            -- ^ Clip filepath
     T.Text            -- ^ Operation to perform (might be changed to a type)
+    deriving (Show, Eq)
 
 data TaskResult 
-    = TaskSuccess T.Text FilePath
+    = TaskSuccess T.Text T.Text
     | TaskFailure T.Text T.Text
     deriving (Generic)

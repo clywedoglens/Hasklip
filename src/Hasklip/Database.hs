@@ -1,60 +1,94 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Hasklip.Database where
 
-import Hasklip.Types
+import Hasklip.Types (
+    Config(..)
+    , TaskResult(..)
+    , QueryInfo(..)
+    , ClipFields(..)
+    , TagFields(..)
+    , ManageFields(..)
+    , TaskResult(..))
+import Hasklip.Util (displayError)
 
 import Control.Monad (forM, forM_)
-import Database.SQLite.Simple (Connection, open, execute, query, lastInsertRowId, Only(..))
+import Database.SQLite.Simple (
+    Connection
+    , open
+    , execute
+    , query
+    , changes
+    , lastInsertRowId
+    , Only(..))
 import qualified Data.Text as T
 
+updateDatabase :: Config -> [QueryInfo] -> IO [TaskResult]
+updateDatabase (Config db _) qs = do
+    conn <- open db
+    mapM (runQuery conn) qs
+    -- results <- forM qs runQuery
+    -- return $ T.concat results
 
-updateDatabase :: Config -> [QueryInfo] -> IO T.Text
-updateDatabase (Config _ dbPath) qs = do
-    conn <- open dbPath
-    results <- forM qs runQuery
-    return $ T.concat results
-
-runQuery :: Connection -> QueryInfo -> IO T.Text
+runQuery :: Connection -> QueryInfo -> IO TaskResult
 runQuery conn (ClipQuery f) = insertClip conn f
-runQuery conn (TagQuery f) = return "Tag handling implemented soon"
-runQuery conn (ManageQuery f) = return "Manage handling implemented soon"
+runQuery conn (TagQuery (TagFields tagId _ _)) =
+    return $ TaskSuccess tagId "Tag handling implemented soon"
+runQuery conn (ManageQuery (ManageFields mgmtId _ _)) =
+    return $ TaskSuccess mgmtId "Manage handling implemented soon"
 
-insertClip :: Connection -> ClipFields -> IO T.Text
-insertClip conn (ClipFields path dur game tags) = do
+insertClip :: Connection -> ClipFields -> IO TaskResult
+insertClip conn (ClipFields taskId path dur game tags) = do
     gameId <- findGameIdByName conn game
-    count <- execute conn clipQuery clipParams
+    let clipParams = (path, gameId, dur)
+    execute conn clipQuery clipParams
+    count <- changes conn
     if count == 1
         then do
-            clipId <- lastInsertRowId conn
+            clipId <- fromIntegral <$> lastInsertRowId conn
             case tags of
                 Nothing -> return ()
                 Just tagList -> mapM_ (insertTag conn clipId) tagList
-            return $ "Success: Inserted clip " <> path
-        else 
-            return $ "Failed: Could not insert clip " <> path
+            return $ TaskSuccess taskId successMsg
+        else
+            return $ TaskFailure taskId failMsg
   where 
-    clipQuery = "INSERT INTO clips (file_path, game_id, duration) VALUES (?,?,?)"
-    clipParams = (path, gameId, dur)
+    clipQuery  = "INSERT INTO clips (file_path, game_id, duration) VALUES (?,?,?) ON CONFLICT(file_path) DO NOTHING"
+    successMsg = "Success: Inserted clip"
+    failMsg    = "Failed: Could not insert clip"
 
 insertTag :: Connection -> Int -> T.Text -> IO ()
 insertTag conn clipId tag = do
-    rows <- query conn "SELECT id FROM tags WHERE name = ?" (Only tag)
+    rows <- query conn "SELECT id FROM tags WHERE name = ?" (Only tag) :: IO [Only Int]
     tagId <- case rows of
-        [Only tid] -> return tid
+        [Only tid] -> return $ Just tid
         []         -> do
-            execute conn "INSERT INTO tags (name) VALUES (?)" (Only tag)
-            lastInsertRowId conn
-        _          -> error "Multiple tags with same name"
-    execute conn "INSERT INTO clip_tags (clip_id, tag_id) VALUES (?,?)" (clipId, tagId)
+            execute conn insertTagQuery (Only tag) :: IO ()
+            Just <$> fromIntegral <$> lastInsertRowId conn
+        _          -> do
+            return Nothing
+    case tagId of
+        Just i -> 
+            execute conn insertCTQuery (clipId, i) :: IO ()
+        Nothing ->
+            displayError $ "Multiple tags with the same name: " <> tag
+  where
+    insertTagQuery = "INSERT INTO tags (name) VALUES (?) ON CONFLICT(name) DO NOTHING"
+    insertCTQuery  = "INSERT INTO clip_tags (clip_id, tag_id) VALUES (?,?)"
 
 findGameIdByName :: Connection -> Maybe T.Text -> IO (Maybe Int)
 findGameIdByName _ Nothing = return Nothing
 findGameIdByName conn (Just name) = do
-    rows <- query conn "SELECT id FROM games WHERE name = ?" (Only name)
+    rows <- query conn selectGamesQuery (Only name) :: IO [Only Int]
     case rows of
         [Only gameId] -> return $ Just gameId
         []         -> do
-            execute conn "INSERT INTO games (name) VALUES (?)" (Only name)
-            gameId <- lastInsertRowId conn
+            execute conn insertGamesQuery (Only name) :: IO ()
+            gameId <- fromIntegral <$> lastInsertRowId conn
             return $ Just gameId
-        _          -> error "Multiple games with same name"
+        _          -> do
+            displayError $ multipleGamesErr <> name
+            return $ Nothing
+  where
+    selectGamesQuery = "SELECT id FROM games WHERE name = ?"
+    insertGamesQuery = "INSERT INTO games (name) VALUES (?)"
+    multipleGamesErr = "Multiple game with the same name: "
