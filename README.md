@@ -1,1 +1,2 @@
-# cfgparse
+# Hasklip
+A work in progress
