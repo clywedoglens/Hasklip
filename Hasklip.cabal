@@ -30,6 +30,7 @@ executable Hasklip
                       , aeson
                       , text
                       , bytestring
+                      , sqlite-simple
     ghc-options:      -Wall
                       -Wcompat
                       -Widentities
@@ -55,7 +56,7 @@ library
                       , yaml
                       , text
                       , bytestring
-                      , exceptions
+                      , sqlite-simple
 
 source-repository head
   type:     git
