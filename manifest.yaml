@@ -1,8 +1,0 @@
-tasks:
-  - type: clip
-    id: "clip1"
-    input: "Replay 2026-03-01 20-10-00.mkv"
-    output: "demoman flick vs scout on sawmill.webm"
-    start: 14
-    end: 21
-    game: "Team Fortress 2"
