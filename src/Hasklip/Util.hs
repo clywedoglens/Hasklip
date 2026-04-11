@@ -3,6 +3,7 @@ module Hasklip.Util where
 
 import Hasklip.Types (
     Task(..)
+    , ManageOp(..)
     , TaskError(..)
     , ValidatedTask(..)
     , QueryInfo(..)
@@ -28,12 +29,18 @@ displayError = (hPutStrLn stderr) . T.unpack . ("ERROR: " <>)
 taskId :: Task -> T.Text
 taskId (ClipTask i _ _ _ _ _ _) = i
 taskId (TagTask i _ _)          = i
-taskId (ManageTask i _ _ )      = i
+taskId (ManageTask i _)      = i
 
 taskDesc :: Task -> T.Text
 taskDesc (ClipTask i _ _ _ _ _ _) = "Clip task id " <> i
 taskDesc (TagTask i _ _)          = "Tag task id " <> i
-taskDesc (ManageTask i _ _ )      = "Manage task id " <> i
+taskDesc (ManageTask i o)      = "Manage task id " <> i <> (mgmtOpDesc o)
+
+mgmtOpDesc :: ManageOp -> T.Text
+mgmtOpDesc (DeleteClip _)       = "Delete clip"
+mgmtOpDesc (DeleteTag _)        = "Delete tag"
+mgmtOpDesc (RemoveClipTags _ _) = "Remove clip tags"
+
 
 summarizeValidatedTasks :: [ValidatedTask] -> T.Text
 summarizeValidatedTasks vs = T.intercalate "\n" [validatedTaskSummary v | v <- vs]
@@ -48,20 +55,15 @@ summarizeValidatedTasks vs = T.intercalate "\n" [validatedTaskSummary v | v <- v
 taskToQuery :: Task -> QueryInfo
 taskToQuery (ClipTask tid _ o s e g tgs) = ClipQuery $ ClipFields tid o (e-s) g tgs
 taskToQuery (TagTask tid p tgs)          = TagQuery $ TagFields tid p tgs
-taskToQuery (ManageTask tid p o)         = ManageQuery $ ManageFields tid p o
+taskToQuery (ManageTask tid o)           = ManageQuery $ ManageFields tid o
 
 matchTaskId :: Task -> TaskResult -> Bool
 matchTaskId t r = 
-    let
-        taskId   = case t of
-            ClipTask i _ _ _ _ _ _ -> i
-            TagTask i _ _          -> i
-            ManageTask i _ _       -> i
+    let tid      = taskId t
         resultId = case r of
-            TaskSuccess i _ -> i
-            TaskFailure i _ -> i
-    in
-        taskId == resultId
+            (TaskSuccess i _) -> i
+            (TaskFailure i _) -> i
+    in tid == resultId
 
 matchClipId :: ClipArbeit -> ArbeitResult -> Bool
 matchClipId c r = 
@@ -96,4 +98,4 @@ partitionTasks = foldr go ([], [], [])
   where 
     go t@(ClipTask _ _ _ _ _ _ _) (cs, ts, ms) = (t:cs, ts, ms)
     go t@(TagTask _ _ _) (cs, ts, ms)          = (cs, t:ts, ms)
-    go t@(ManageTask _ _ _) (cs, ts, ms)       = (cs, ts, t:ms)
+    go t@(ManageTask _ _) (cs, ts, ms)         = (cs, ts, t:ms)

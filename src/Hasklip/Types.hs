@@ -52,10 +52,23 @@ data Task
             [T.Text]  -- ^ Tags
     | -- | Manage existing clips
         ManageTask 
-            T.Text  -- ^ Task id
-            T.Text  -- ^ Clip filepath
-            T.Text  -- ^ Operation to perform (might be changed to a type)
+            T.Text    -- ^ Task id
+            ManageOp  -- ^ Operation to perform with details
     deriving (Show, Eq)
+
+data ManageOp
+    = -- | Delete a clip
+        DeleteClip
+            T.Text  -- ^ Clip filepath
+    | -- Delete a tag
+        DeleteTag
+            T.Text  -- ^ Tag name
+    | -- Remove a tag from a clip
+        RemoveClipTags
+            T.Text    -- ^ Clip filepath
+            [T.Text]  -- ^ Tags
+    deriving (Show, Eq)
+
 
 instance FromJSON Task where
     parseJSON = withObject "Task" $ \v -> do
@@ -75,9 +88,21 @@ instance FromJSON Task where
                 <*> v .: "tags"
             "manage" -> ManageTask
                 <$> v .: "id"
-                <*> v .: "clip"
                 <*> v .: "operation"
             _        -> fail $ "Unknown task type: " ++ show typ
+
+instance FromJSON ManageOp where
+    parseJSON = withObject "operation" $ \v -> do
+        op <- v .: "type" :: Parser T.Text
+        case op of
+            "deleteClip"    -> DeleteClip
+                <$> v .: "filepath"
+            "deleteTag"     -> DeleteTag
+                <$> v .: "tag"
+            "removeClipTags" -> RemoveClipTags
+                <$> v .: "filepath"
+                <*> v .: "tags"
+            _                -> fail $ "Unknown op type: " ++ show op
 
 data ParseError
     = FileError T.Text
@@ -146,15 +171,14 @@ data ClipFields = ClipFields
     deriving (Show, Eq)
 
 data TagFields = TagFields
-    T.Text            -- ^ id
-    T.Text            -- ^ Clip filepath
-    [T.Text]          -- ^ Tags
+    T.Text    -- ^ id
+    T.Text    -- ^ Clip filepath
+    [T.Text]  -- ^ Tags
     deriving (Show, Eq)
 
 data ManageFields = ManageFields
-    T.Text            -- ^ id
-    T.Text            -- ^ Clip filepath
-    T.Text            -- ^ Operation to perform (might be changed to a type)
+    T.Text    -- ^ id
+    ManageOp  -- ^ Operation to perform (might be changed to a type)
     deriving (Show, Eq)
 
 data TaskResult 

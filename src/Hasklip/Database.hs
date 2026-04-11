@@ -31,9 +31,8 @@ updateDatabase (Config db _) qs = do
 
 runQuery :: Connection -> QueryInfo -> IO TaskResult
 runQuery conn (ClipQuery f) = insertClip conn f
-runQuery conn (TagQuery (TagFields tagId _ _)) =
-    return $ TaskSuccess tagId "Tag handling implemented soon"
-runQuery conn (ManageQuery (ManageFields mgmtId _ _)) =
+runQuery conn (TagQuery f) = insertClipTags conn f
+runQuery conn (ManageQuery (ManageFields mgmtId _)) =
     return $ TaskSuccess mgmtId "Manage handling implemented soon"
 
 insertClip :: Connection -> ClipFields -> IO TaskResult
@@ -75,6 +74,20 @@ insertTag conn clipId tag = do
     insertTagQuery = "INSERT INTO tags (name) VALUES (?) ON CONFLICT(name) DO NOTHING"
     insertCTQuery  = "INSERT INTO clip_tags (clip_id, tag_id) VALUES (?,?)"
 
+insertClipTags :: Connection -> TagFields -> IO TaskResult
+insertClipTags conn (TagFields tid filePath tags) = do
+    clipId <- findClipIdByFilePath conn filePath
+    case clipId of
+        Just i -> do
+            mapM_ (insertTag conn i) tags
+            return $ TaskSuccess tid successMsg
+        Nothing -> 
+            return $ TaskFailure tid failMsg
+  where
+    successMsg = "Successfully inserted tags"
+    failMsg    = "A clip with that file path could not be found"
+
+
 findGameIdByName :: Connection -> Maybe T.Text -> IO (Maybe Int)
 findGameIdByName _ Nothing = return Nothing
 findGameIdByName conn (Just name) = do
@@ -92,3 +105,12 @@ findGameIdByName conn (Just name) = do
     selectGamesQuery = "SELECT id FROM games WHERE name = ?"
     insertGamesQuery = "INSERT INTO games (name) VALUES (?)"
     multipleGamesErr = "Multiple game with the same name: "
+
+findClipIdByFilePath :: Connection -> T.Text -> IO (Maybe Int)
+findClipIdByFilePath conn filePath = do
+    rows <- query conn selectClipsQuery (Only filePath) :: IO [Only Int]
+    case rows of
+        [Only clipId] -> return $ Just clipId
+        _             -> return $ Nothing
+  where
+    selectClipsQuery = "SELECT id FROM clips WHERE file_path = ?"
