@@ -8,6 +8,10 @@ import Hasklip.Util (partitionTasks, taskToQuery, displayText, matchClipId, summ
 
 import qualified Data.ByteString.Lazy as BL
 import Data.Aeson (encode)
+import Prelude hiding (catch)
+import System.Directory
+import Control.Exception
+import System.IO.Error hiding (catch)
 import System.Timeout (timeout)
 
 processTasks :: Config -> [Task] -> IO [TaskResult]
@@ -15,15 +19,14 @@ processTasks config ts = do
     let
         (cs, gs, ms) = partitionTasks ts
         clipArbeit = [ClipArbeit t i o s e (title g) | (ClipTask t i o s e g _) <- cs]
-        mgmtArbeit = [MgmtArbeit t o | (ManageTask t o) <- ms]
+        mgmtArbeit = [MgmtArbeit t f | (ManageTask t (DeleteClip f)) <- ms]
     rs <- processClipArbeit clipArbeit
     mrs <- processMgmtArbeit mgmtArbeit
-    let pairs  = [(c, r) | c <- clipArbeit, r <- rs, matchClipId c r]
-        cs'    = [c | c@(ClipTask t _ _ _ _ _ _) <- cs, (Erfolg i) <- rs, t == i]
-        fs     = [TaskFailure t e | (Fehler t e) <- rs]
-        header = "CLIP ARBEITER RESULTS\n"
-    displayText $ header <> (summarizeClipResults pairs)
-    dbResults <- updateDatabase config $ map taskToQuery $ cs' ++ gs ++ ms
+    let cs'    = [c | c@(ClipTask t _ _ _ _ _ _) <- cs, (Erfolg i) <- rs, t == i]
+        ms'    = [m | m@(ManageTask t _) <- ms, (Erfolg i) <- mrs, t == i]
+        rs'    = rs ++ mrs
+        fs     = [TaskFailure t e | (Fehler t e) <- rs']
+    dbResults <- updateDatabase config $ map taskToQuery $ cs' ++ gs ++ ms'
     return $ dbResults ++ fs
   where
     title (Just s)   = s
@@ -43,6 +46,16 @@ processClipArbeit cs = do
         Just (Right results) ->
             return $ results
 
--- processMgmtArbeit :: [MgmtArbeit] -> IO [ArbeitResult]
--- processMgmtArbeit ms = do
---     return $ [] 
+processMgmtArbeit :: [MgmtArbeit] -> IO [ArbeitResult]
+processMgmtArbeit = mapM process
+  where
+    process (MgmtArbeit i f) = deleteClip i f
+
+deleteClip :: T.Text -> FilePath -> IO ArbeitResult
+deleteClip i f = do
+    removeFile f `catch` handleExists
+  where 
+    handleExists e
+        | isDoesNotExistError e = return $ Fehler i "File does not exist"
+        | otherwise
+

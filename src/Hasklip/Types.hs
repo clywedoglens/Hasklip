@@ -135,7 +135,7 @@ instance ToJSON ClipArbeit where
 data MgmtArbeit = MgmtArbeit
     {
       mgmtArbeit_mgmtArbeitId :: T.Text
-    , mgmtArbeit_filePath     :: T.Text
+    , mgmtArbeit_clipFilePath :: T.Text
     }
 
 data ArbeitResult 
