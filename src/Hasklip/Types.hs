@@ -105,13 +105,20 @@ instance FromJSON ManageOp where
             _                -> fail $ "Unknown op type: " ++ show op
 
 data ParseError
-    = FileError T.Text
-    | ParserError T.Text
+    = 
+        FileError 
+            T.Text  -- ^ Error message
+    |   ParserError 
+            T.Text  -- ^ Error message
     deriving (Show, Eq)
 
 data ValidatedTask
-    = ValidTask Task
-    | InvalidTask Task [TaskError]
+    = 
+        ValidTask 
+            Task  -- ^ Valid task
+    |   InvalidTask 
+            Task         -- ^ Invalid task
+            [TaskError]  -- ^ Associated error messages
     deriving (Show, Eq)
 
 data TaskError
@@ -139,8 +146,12 @@ data MgmtArbeit = MgmtArbeit
     }
 
 data ArbeitResult 
-    = Erfolg T.Text 
-    | Fehler T.Text T.Text
+    = 
+        Erfolg 
+            T.Text  -- ^ Corresponding task id
+    |   Fehler 
+            T.Text  -- ^ Corresponding task id
+            T.Text  -- ^ Failure message
     deriving (Show, Generic)
 
 instance FromJSON ArbeitResult where
@@ -155,11 +166,11 @@ instance FromJSON ArbeitResult where
 
 data QueryInfo 
     = -- | Clip a video
-      ClipQuery ClipFields
+        ClipQuery ClipFields
     | -- | Tag an existing clip
-      TagQuery TagFields
+        TagQuery TagFields
     | -- | Manage existing clips
-      ManageQuery ManageFields
+        ManageQuery ManageFields
     deriving (Show, Eq)
 
 data ClipFields = ClipFields
@@ -176,12 +187,22 @@ data TagFields = TagFields
     [T.Text]  -- ^ Tags
     deriving (Show, Eq)
 
-data ManageFields = ManageFields
-    T.Text    -- ^ id
-    ManageOp  -- ^ Operation to perform (might be changed to a type)
+data ManageFields 
+    =
+        DeleteClipFields
+            T.Text  -- ^ Clip filepath
+    |   DeleteTagFields
+            T.Text  -- ^ Tag name
+    |   RemoveClipTagsFields
+            T.Text -- ^ Clip filepath
     deriving (Show, Eq)
 
 data TaskResult 
-    = TaskSuccess T.Text T.Text
-    | TaskFailure T.Text T.Text
+    = 
+        TaskSuccess 
+            T.Text  -- ^ Task id
+            T.Text  -- ^ Success message if applicable
+    |   TaskFailure 
+            T.Text  -- ^ Task id
+            T.Text  -- ^ Failure message
     deriving (Generic)
