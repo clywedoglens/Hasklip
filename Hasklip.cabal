@@ -31,6 +31,7 @@ executable Hasklip
                       , text
                       , bytestring
                       , sqlite-simple
+                      , directory
     ghc-options:      -Wall
                       -Wcompat
                       -Widentities
@@ -57,6 +58,7 @@ library
                       , text
                       , bytestring
                       , sqlite-simple
+                      , directory
 
 source-repository head
   type:     git

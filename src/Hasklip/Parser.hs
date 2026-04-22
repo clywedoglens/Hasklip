@@ -25,9 +25,9 @@ readAndDecode path = do
 readManifest :: FilePath -> IO (ParseResult Manifest)
 readManifest = readAndDecode
 
-readClipArbeitResults :: IO (ParseResult [ArbeitResult])
-readClipArbeitResults = do
-    handle <- openFileBlocking "/tmp/cliparbeitresults.fifo" ReadMode
+readClipArbeitResults :: FilePath -> IO (ParseResult [ArbeitResult])
+readClipArbeitResults f = do
+    handle <- openFileBlocking f ReadMode
     -- This ensures blocking read
     content <- BS.hGetContents handle
     hClose handle

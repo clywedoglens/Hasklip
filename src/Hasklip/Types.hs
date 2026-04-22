@@ -190,11 +190,15 @@ data TagFields = TagFields
 data ManageFields 
     =
         DeleteClipFields
+            T.Text  -- ^ id
             T.Text  -- ^ Clip filepath
     |   DeleteTagFields
+            T.Text  -- ^ id
             T.Text  -- ^ Tag name
     |   RemoveClipTagsFields
+            T.Text -- ^ id
             T.Text -- ^ Clip filepath
+            [T.Text] -- ^ tags
     deriving (Show, Eq)
 
 data TaskResult 

@@ -37,9 +37,9 @@ taskDesc (TagTask i _ _)          = "Tag task id " <> i
 taskDesc (ManageTask i o)      = "Manage task id " <> i <> (mgmtOpDesc o)
 
 mgmtOpDesc :: ManageOp -> T.Text
-mgmtOpDesc (DeleteClip _)       = "Delete clip"
-mgmtOpDesc (DeleteTag _)        = "Delete tag"
-mgmtOpDesc (RemoveClipTags _ _) = "Remove clip tags"
+mgmtOpDesc (DeleteClip _)       = " Delete clip"
+mgmtOpDesc (DeleteTag _)        = " Delete tag"
+mgmtOpDesc (RemoveClipTags _ _) = " Remove clip tags"
 
 
 summarizeValidatedTasks :: [ValidatedTask] -> T.Text
@@ -55,7 +55,10 @@ summarizeValidatedTasks vs = T.intercalate "\n" [validatedTaskSummary v | v <- v
 taskToQuery :: Task -> QueryInfo
 taskToQuery (ClipTask tid _ o s e g tgs) = ClipQuery $ ClipFields tid o (e-s) g tgs
 taskToQuery (TagTask tid p tgs)          = TagQuery $ TagFields tid p tgs
-taskToQuery (ManageTask tid o)           = ManageQuery $ ManageFields tid o
+taskToQuery (ManageTask tid o)           = ManageQuery $ case o of
+    (DeleteClip f)        -> DeleteClipFields tid f
+    (DeleteTag t)         -> DeleteTagFields tid t
+    (RemoveClipTags f ts) -> RemoveClipTagsFields tid f ts
 
 matchTaskId :: Task -> TaskResult -> Bool
 matchTaskId t r = 
