@@ -32,12 +32,11 @@ main = do
         Left (FileError e)  -> displayError e
         Left (ParserError e) -> displayError e
         Right manifest -> do
-            let validated             = validateManifest manifest
-                (valid, invalid)      = partitionValidated validated
-                validatedHeader       = "VALIDATION RESULTS\n"
-            displayText $ validatedHeader <> (summarizeValidatedTasks validated)
+            let validated        = validateManifest manifest
+                (valid, invalid) = partitionValidated validated
+                invalidResults   = [invalidFail t es |(InvalidTask t es) <- invalid]
             results <- processTasks config valid
-            let finalRes = results ++ [invalidFail t es |(InvalidTask t es) <- invalid]
+            let finalRes = results ++ invalidResults
                 tasks    = manifest_tasks manifest
                 pairs    = [(t, r) | t <- tasks, r <- finalRes, matchTaskId t r]
                 header   = "FINAL RESULTS\n"

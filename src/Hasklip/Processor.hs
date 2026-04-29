@@ -13,6 +13,8 @@ import Hasklip.Types (
     , ArbeitResult(..))
 import Hasklip.Util (
     partitionTasks
+    , partitionValidated
+    , partitionDBTasks
     , taskToQuery
     , displayText
     , matchClipId
@@ -29,28 +31,20 @@ import System.Timeout (timeout)
 
 processTasks :: Config -> [Task] -> IO [TaskResult]
 processTasks config ts = do
-    let
-        (cs, gs, ms) = partitionTasks ts
-        clipArbeit = [ClipArbeit t i o s e (title g) | (ClipTask t i o s e g _) <- cs]
-        mgmtArbeit = [MgmtArbeit t f | (ManageTask t (DeleteClip f)) <- ms]
-    rs <- processClipArbeit clipArbeit
+    crs <- processClipArbeit clipArbeit
     mrs <- processMgmtArbeit mgmtArbeit
-    let cs'    = [c | c@(ClipTask t _ _ _ _ _ _) <- cs, (Erfolg i) <- rs, t == i]
-        ams    = [m | m@(ManageTask t _) <- ms, (Erfolg i) <- mrs, t == i]
-        ms'    = [m | m@(ManageTask _ o) <- ms, nonMgmtArbeit o] ++ ams
-        rs'    = rs ++ mrs
-        fs     = [TaskFailure t e | (Fehler t e) <- rs']
-    dbResults <- updateDatabase config $ map taskToQuery $ cs' ++ gs ++ ms'
-    return $ dbResults ++ fs
+    let rs       = crs ++ mrs
+        (qt, nt) = partitionDBTasks rs ts
+    dbResults <- updateDatabase config $ map taskToQuery processed
+    return $ dbResults ++ nt
   where
+    clipArbeit = [ClipArbeit t i o s e (title g) | (ClipTask t i o s e g _) <- ts]
+    mgmtArbeit = [MgmtArbeit t f | (ManageTask t (DeleteClip f)) <- ts]
     title (Just s) = s
     title Nothing  = ""
-    nonMgmtArbeit (DeleteClip _)       = False
-    nonMgmtArbeit (DeleteTag _)        = True
-    nonMgmtArbeit (RemoveClipTags _ _) = True
 
 processClipArbeit :: [ClipArbeit] -> IO [ArbeitResult]
-processClipArbeit [] = return $ []
+processClipArbeit [] = return []
 processClipArbeit cs = do
     BL.writeFile pipePath jsonData
     maybeResult <- timeout (60 * 2000000) (readClipArbeitResults resultPath)
@@ -60,7 +54,7 @@ processClipArbeit cs = do
         Just (Left _) ->
             return []
         Just (Right results) ->
-            return $ results
+            return results
   where
     jsonData   = encode cs
     pipePath   = "/tmp/cliparbeitinfo.fifo"
