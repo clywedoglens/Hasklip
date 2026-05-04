@@ -14,6 +14,7 @@ import Hasklip.Types (
     , ArbeitResult(..)
     , TaskResult(..))
 
+import Data.List (find)
 import qualified Data.Text as T
 import System.IO (hPutStrLn, stderr)
 
@@ -55,22 +56,18 @@ summarizeValidatedTasks vs = T.intercalate "\n" [validatedTaskSummary v | v <- v
 partitionDBTasks :: [ArbeitResult] -> [Task] -> ([Task], [TaskResult])
 partitionDBTasks rs = foldr go ([], [])
   where
-    findResult tid = find (compareId tid) rs
+    findResult tid             = find (compareId tid) rs
     compareId tid (Erfolg i)   = tid == i
     compareId tid (Fehler i _) = tid == i
-    notFound i = TaskFailure tid "ClipTask not found in result"
-    arbeitResult i t (e, f) = case findResult i of
+    notFound i                 = TaskFailure i msg
+    msg                        = "ClipTask not found in result"
+    arbeitResult i t (e, f)    = case findResult i of
         Nothing           -> (e, (notFound i):f)
         Just (Erfolg _)   -> (t:e, f)
         Just (Fehler _ m) -> (e, (TaskFailure i m):f)
     go t@(ClipTask tid _ _ _ _ _ _) acc        = arbeitResult tid t acc
-    go t@(ManageTask tid (DeleteClip _ _)) acc = arbeitResult tid t acc
-    go t acc                                   = (t:e, f)
--- partitionDBTasks ts rs = partition processed ts
---   where 
---     processed (ClipTask tid _ _ _ _ _ _)      = (Erfolg tid) `elem` rs
---     processed (ManageTask tid (DeleteClip _)) = (Erfolg tid) `elem` rs
---     processed _                               = True
+    go t@(ManageTask tid (DeleteClip _)) acc   = arbeitResult tid t acc
+    go t (e, f)                                = (t:e, f)
 
 taskToQuery :: Task -> QueryInfo
 taskToQuery (ClipTask tid _ o s e g tgs) = ClipQuery $ ClipFields tid o (e-s) g tgs
@@ -79,12 +76,6 @@ taskToQuery (ManageTask tid o)           = ManageQuery $ case o of
     (DeleteClip f)        -> DeleteClipFields tid f
     (DeleteTag t)         -> DeleteTagFields tid t
     (RemoveClipTags f ts) -> RemoveClipTagsFields tid f ts
-
--- pairResults :: [Task] -> [ArbeitResult] -> [(Task, ArbeitResult)]
--- pairResults ts rs = map pairResult ts
---   where
---     pairResult t@(TagTask tid _ _) = (t, Erfolg tid)
---     pairResult t                   = (t, )
 
 matchTaskId :: Task -> TaskResult -> Bool
 matchTaskId t r = 

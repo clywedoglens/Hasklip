@@ -16,6 +16,7 @@ def arbeiten():
             continue
         results = arbeit.arbeiten()
         json_results = [asdict(res) for res in results]
+        print(f"results: {json_results}")
         write_data(json.dumps(json_results))
         print("finished writing results...")
 
