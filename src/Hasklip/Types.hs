@@ -21,11 +21,20 @@ import qualified Data.Text as T
 
 data Config = Config
     {
-      config_dbPath       :: FilePath
+      config_manifest     :: FilePath
+    , config_dbPath       :: FilePath
     , config_clipsDir     :: FilePath
     , config_requestPipe  :: FilePath
     , config_responsePipe :: FilePath
     } deriving (Show, Eq)
+
+instance FromJSON Config where
+    parseJSON = withObject "Config" $ \v -> Config
+        <$> v .: "manifest"
+        <*> v .: "dbPath"
+        <*> v .: "clipsDir"
+        <*> v .: "requestPipe"
+        <*> v .: "responsePipe"
 
 type ParseResult a = Either ParseError a
 

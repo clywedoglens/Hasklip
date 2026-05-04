@@ -23,21 +23,20 @@ import System.Timeout (timeout)
 
 
 processTasks :: Config -> [Task] -> IO [TaskResult]
-processTasks config ts = do
-    crs <- processClipArbeit config clipArbeit
+processTasks (Config _ dbPath clipsDir reqPath resPath) ts = do
+    crs <- processClipArbeit reqPath resPath clipArbeit
     mrs <- processMgmtArbeit clipsDir mgmtArbeit
     let rs        = crs ++ mrs
         (ts', ft) = partitionDBTasks rs ts
-    dbResults <- updateDatabase config $ map taskToQuery ts'
+    dbResults <- updateDatabase dbPath $ map taskToQuery ts'
     return $ dbResults ++ ft
   where
-    clipsDir   = config_clipsDir config
     clipArbeit = [ClipArbeit t i o s e g | (ClipTask t i o s e g _) <- ts]
     mgmtArbeit = [MgmtArbeit t f | (ManageTask t (DeleteClip f)) <- ts]
 
-processClipArbeit :: Config -> [ClipArbeit] -> IO [ArbeitResult]
-processClipArbeit _ []      = return []
-processClipArbeit config cs = do
+processClipArbeit :: FilePath -> FilePath -> [ClipArbeit] -> IO [ArbeitResult]
+processClipArbeit _ _ []             = return []
+processClipArbeit reqPath resPath cs = do
     BL.writeFile reqPath jsonData
     maybeResult <- timeout timeLimit (readClipArbeitResults resPath)
     case maybeResult of
@@ -50,8 +49,6 @@ processClipArbeit config cs = do
   where
     jsonData  = encode cs
     timeLimit = 600000000
-    reqPath   = config_requestPipe config
-    resPath   = config_responsePipe config
 
 processMgmtArbeit :: FilePath -> [MgmtArbeit] -> IO [ArbeitResult]
 processMgmtArbeit clipsDir = mapM process

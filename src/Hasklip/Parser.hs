@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeApplications #-}
 module Hasklip.Parser where
 
-import Hasklip.Types (Manifest, ParseResult, ArbeitResult, ParseError(..))
+import Hasklip.Types (Config, Manifest, ParseResult, ArbeitResult, ParseError(..))
 
 import Data.Aeson (FromJSON)
 import Data.Yaml (decodeEither')
@@ -21,6 +21,9 @@ readAndDecode path = do
           return $ case decodeEither' content of
               Left err  -> Left (ParserError (T.pack $ show err))
               Right val -> Right val
+
+readConfig :: FilePath -> IO (ParseResult Config)
+readConfig = readAndDecode
 
 readManifest :: FilePath -> IO (ParseResult Manifest)
 readManifest = readAndDecode
