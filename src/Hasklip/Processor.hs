@@ -4,26 +4,19 @@ module Hasklip.Processor where
 import Hasklip.Database (updateDatabase)
 import Hasklip.Parser (readClipArbeitResults)
 import Hasklip.Types (
-    Config
+    Config(..)
     , Task(..)
     , ManageOp(..)
     , TaskResult(..)
     , ClipArbeit(..)
     , MgmtArbeit(..)
     , ArbeitResult(..))
-import Hasklip.Util (
-    partitionTasks
-    , partitionValidated
-    , partitionDBTasks
-    , taskToQuery
-    , displayText
-    , matchClipId
-    , summarizeClipResults)
+import Hasklip.Util (partitionDBTasks, taskToQuery)
 
 import Data.Aeson (encode)
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
-import System.Directory
+import System.Directory (removeFile)
 import Control.Exception (try)
 import System.IO.Error (isDoesNotExistError)
 import System.Timeout (timeout)
@@ -31,23 +24,22 @@ import System.Timeout (timeout)
 
 processTasks :: Config -> [Task] -> IO [TaskResult]
 processTasks config ts = do
-    crs <- processClipArbeit clipArbeit
-    mrs <- processMgmtArbeit mgmtArbeit
-    let rs       = crs ++ mrs
-        (qt, nt) = partitionDBTasks rs ts
-    dbResults <- updateDatabase config $ map taskToQuery processed
-    return $ dbResults ++ nt
+    crs <- processClipArbeit config clipArbeit
+    mrs <- processMgmtArbeit clipsDir mgmtArbeit
+    let rs        = crs ++ mrs
+        (ts', ft) = partitionDBTasks rs ts
+    dbResults <- updateDatabase config $ map taskToQuery ts'
+    return $ dbResults ++ ft
   where
-    clipArbeit = [ClipArbeit t i o s e (title g) | (ClipTask t i o s e g _) <- ts]
+    clipsDir   = config_clipsDir config
+    clipArbeit = [ClipArbeit t i o s e g | (ClipTask t i o s e g _) <- ts]
     mgmtArbeit = [MgmtArbeit t f | (ManageTask t (DeleteClip f)) <- ts]
-    title (Just s) = s
-    title Nothing  = ""
 
-processClipArbeit :: [ClipArbeit] -> IO [ArbeitResult]
-processClipArbeit [] = return []
-processClipArbeit cs = do
-    BL.writeFile pipePath jsonData
-    maybeResult <- timeout (60 * 2000000) (readClipArbeitResults resultPath)
+processClipArbeit :: Config -> [ClipArbeit] -> IO [ArbeitResult]
+processClipArbeit _ []      = return []
+processClipArbeit config cs = do
+    BL.writeFile reqPath jsonData
+    maybeResult <- timeout timeLimit (readClipArbeitResults resPath)
     case maybeResult of
         Nothing ->
             return []
@@ -56,22 +48,22 @@ processClipArbeit cs = do
         Just (Right results) ->
             return results
   where
-    jsonData   = encode cs
-    pipePath   = "/tmp/cliparbeitinfo.fifo"
-    resultPath = "/tmp/cliparbeitresults.fifo"
+    jsonData  = encode cs
+    timeLimit = 600000000
+    reqPath   = config_requestPipe config
+    resPath   = config_responsePipe config
 
-processMgmtArbeit :: [MgmtArbeit] -> IO [ArbeitResult]
-processMgmtArbeit = mapM process
+processMgmtArbeit :: FilePath -> [MgmtArbeit] -> IO [ArbeitResult]
+processMgmtArbeit clipsDir = mapM process
   where
-    process (MgmtArbeit i f) = deleteClip i $ T.unpack f
+    process (MgmtArbeit i f) = let filePath = clipsDir ++ (T.unpack f)
+        in deleteClip i filePath
 
 deleteClip :: T.Text -> FilePath -> IO ArbeitResult
 deleteClip i f = do
-    result <- try (removeFile $ fullPath) :: IO (Either IOError ())
+    result <- try (removeFile $ f) :: IO (Either IOError ())
     case result of
         Left e
             | isDoesNotExistError e -> return $ Fehler i "File does not exist"
             | otherwise             -> return $ Fehler i ((T.pack . show) e)
         Right _                     -> return $ Erfolg i
-  where
-    fullPath = "/home/george/Videos/Clips/" ++ f

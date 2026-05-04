@@ -21,8 +21,10 @@ import qualified Data.Text as T
 
 data Config = Config
     {
-      config_dbPath   :: FilePath
-    , config_clipsDir :: FilePath
+      config_dbPath       :: FilePath
+    , config_clipsDir     :: FilePath
+    , config_requestPipe  :: FilePath
+    , config_responsePipe :: FilePath
     } deriving (Show, Eq)
 
 type ParseResult a = Either ParseError a
@@ -132,7 +134,7 @@ data ClipArbeit = ClipArbeit
     , outputPath   :: T.Text
     , start        :: Int
     , end          :: Int
-    , game         :: T.Text
+    , game         :: Maybe T.Text
     } deriving (Generic)
 
 instance ToJSON ClipArbeit where
@@ -209,4 +211,4 @@ data TaskResult
     |   TaskFailure 
             T.Text  -- ^ Task id
             T.Text  -- ^ Failure message
-    deriving (Generic)
+    deriving (Show, Generic)

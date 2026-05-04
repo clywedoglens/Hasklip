@@ -17,7 +17,6 @@ import Hasklip.Util (
     , taskId
     , partitionValidated
     , matchTaskId
-    , summarizeValidatedTasks
     , summarizeTaskResults)
 
 import qualified Data.Text as T
@@ -25,7 +24,9 @@ import qualified Data.Text as T
 main :: IO ()
 main = do
     let config = Config { config_dbPath = "/home/george/Projects/Hasklip/src/Hasklip/clips.db"
-                        , config_clipsDir = "/home/george/Videos/Clips"
+                        , config_clipsDir = "/home/george/Videos/Clips/"
+                        , config_requestPipe   = "/tmp/cliparbeitinfo.fifo"
+                        , config_responsePipe = "/tmp/cliparbeitresults.fifo"
                         }
     result <- readManifest "manifest.yaml"
     case result of

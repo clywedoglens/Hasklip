@@ -24,10 +24,12 @@ import Database.SQLite.Simple (
 import qualified Data.Text as T
 
 updateDatabase :: Config -> [QueryInfo] -> IO [TaskResult]
-updateDatabase (Config db _) qs = do
+updateDatabase config qs = do
     conn <- open db
     execute_ conn "PRAGMA foreign_keys = ON"
     mapM (runQuery conn) qs
+  where
+    db = config_dbPath config
 
 runQuery :: Connection -> QueryInfo -> IO TaskResult
 runQuery conn (ClipQuery f) = insertClip conn f
