@@ -2,7 +2,8 @@
 module Hasklip.Util where
 
 import Hasklip.Types (
-    Task(..)
+    ParseError(..)
+    , Task(..)
     , ManageOp(..)
     , TaskError(..)
     , ValidatedTask(..)
@@ -26,6 +27,10 @@ displayText = putStrLn . T.unpack
 
 displayError :: T.Text -> IO ()
 displayError = (hPutStrLn stderr) . T.unpack . ("ERROR: " <>)
+
+parseErrorMessage :: ParseError -> T.Text
+parseErrorMessage (FileError e)   = e
+parseErrorMessage (ParserError e) = e
 
 taskId :: Task -> T.Text
 taskId (ClipTask i _ _ _ _ _ _) = i
