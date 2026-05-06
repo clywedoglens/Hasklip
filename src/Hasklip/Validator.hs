@@ -22,6 +22,8 @@ validateTask t =
                 , ("Tags cannot be non-empty", validateTags tg)])
             (ManageTask _ o)          ->
                 validateManageOp o
+            (ListTask _ o)            ->
+                validateListOp o
         errors = [TaskError desc | (desc, False) <- checks]
     in if null errors 
         then ValidTask t 
@@ -46,6 +48,10 @@ validateManageOp (DeleteClip f)       = [("Clip path cannot be empty", nonEmpty 
 validateManageOp (DeleteTag tag)      = [("Tag name cannot be empty", nonEmpty tag)]
 validateManageOp (RemoveClipTags f t) = [("Clip path cannot be empty", nonEmpty f)
                                         , ("Tag name cannot be empty", validateTags t)]
+
+validateListOp :: ViewOp -> [(T.Text, Bool)]
+validateListOp (TagSearch ts) = [("Must include tags", validateTags ts)]
+validateListOp (NameSearch n) = [("Search name cannot be empty", nonEmpty n)]
     
     
     

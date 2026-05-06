@@ -65,6 +65,10 @@ data Task
         ManageTask 
             T.Text    -- ^ Task id
             ManageOp  -- ^ Operation to perform with details
+    | -- Create a listing of clips from a name or tag search
+        ListTask
+            T.Text  -- ^ Task id
+            ListOp  -- ^ Type of search
     deriving (Show, Eq)
 
 data ManageOp
@@ -80,6 +84,14 @@ data ManageOp
             [T.Text]  -- ^ Tags
     deriving (Show, Eq)
 
+data ListOp
+    = -- | Search by tag
+        TagSearch
+            [T.Text] -- ^ Tags to look up
+    | -- | Search by name
+        NameSearch
+            T.Text   -- ^ Word within clip name to search
+    deriving (Show, Eq)
 
 instance FromJSON Task where
     parseJSON = withObject "Task" $ \v -> do
@@ -100,6 +112,9 @@ instance FromJSON Task where
             "manage" -> ManageTask
                 <$> v .: "id"
                 <*> v .: "operation"
+            "list"   -> ListTask
+                <$> v .: "id"
+                <*> v .: "operation"
             _        -> fail $ "Unknown task type: " ++ show typ
 
 instance FromJSON ManageOp where
@@ -114,6 +129,16 @@ instance FromJSON ManageOp where
                 <$> v .: "filepath"
                 <*> v .: "tags"
             _                -> fail $ "Unknown op type: " ++ show op
+
+instance FromJSON ListOp where
+    parseJSON = withObject "operation" $ \v -> do
+        op .: "type" :: Parser T.Text
+        case op of
+            "tagSearch"  -> TagSearch
+                <$> v .: "tags"
+            "nameSearch" -> NameSearch
+                <$> v .: "search"
+            _            -> fail $ "Unknown op type: " ++ show op
 
 data ParseError
     = 

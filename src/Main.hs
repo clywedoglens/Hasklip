@@ -29,7 +29,7 @@ main = do
         Right config -> runHasklip config
 
 runHasklip :: Config -> IO ()
-runHasklip config = do 
+runHasklip config = do
     manifestResult <- readManifest manifestPath
     case manifestResult of
         Left err  -> displayError $ parseErrorMessage err
