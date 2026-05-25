@@ -35,28 +35,32 @@ parseErrorMessage (ParserError e) = e
 taskId :: Task -> T.Text
 taskId (ClipTask i _ _ _ _ _ _) = i
 taskId (TagTask i _ _)          = i
-taskId (ManageTask i _)      = i
+taskId (ManageTask i _)         = i
+taskId (ListTask i _)           = i
 
 taskDesc :: Task -> T.Text
 taskDesc (ClipTask i _ _ _ _ _ _) = "Clip task id " <> i
 taskDesc (TagTask i _ _)          = "Tag task id " <> i
-taskDesc (ManageTask i o)      = "Manage task id " <> i <> (mgmtOpDesc o)
+taskDesc (ManageTask i o)         = "Manage task id " <> i <> (mgmtOpDesc o)
+taskDesc (ListTask i o)           = "List task id" <> i <> (listOpDesc o)
 
 mgmtOpDesc :: ManageOp -> T.Text
 mgmtOpDesc (DeleteClip _)       = " Delete clip"
 mgmtOpDesc (DeleteTag _)        = " Delete tag"
 mgmtOpDesc (RemoveClipTags _ _) = " Remove clip tags"
 
+listOpDesc :: ListOp -> T.Text
+listOpDesc (TagSearch tgs) = "Tag search"
+listOpDesc (NameSearch n)  = "Name search"
 
 summarizeValidatedTasks :: [ValidatedTask] -> T.Text
 summarizeValidatedTasks vs = T.intercalate "\n" [validatedTaskSummary v | v <- vs]
   where
     errors es              = T.intercalate "\n" $ map errorDesc es
     errorDesc e            = "-" <> (taskError_description e)
-    validatedTaskSummary v =
-        case v of
-            ValidTask t      -> (taskDesc t) <> " was validated successfully"
-            InvalidTask t es -> (taskDesc t) <> " had these errors:\n" <> errors es
+    validatedTaskSummary v = case v of
+        ValidTask t      -> (taskDesc t) <> " was validated successfully"
+        InvalidTask t es -> (taskDesc t) <> " had these errors:\n" <> errors es
 
 partitionDBTasks :: [ArbeitResult] -> [Task] -> ([Task], [TaskResult])
 partitionDBTasks rs = foldr go ([], [])
@@ -81,6 +85,9 @@ taskToQuery (ManageTask tid o)           = ManageQuery $ case o of
     (DeleteClip f)        -> DeleteClipFields tid f
     (DeleteTag t)         -> DeleteTagFields tid t
     (RemoveClipTags f ts) -> RemoveClipTagsFields tid f ts
+taskToQuery (ListTask tid o)             = ListQuery $ case o of
+    (TagSearch tgs) -> TagSearchFields tid tgs
+    (NameSearch n)  -> NameSearchFields tid n
 
 matchTaskId :: Task -> TaskResult -> Bool
 matchTaskId t r = 
@@ -118,9 +125,10 @@ summarizeTaskResults ts = T.intercalate "\n" [summarizeTaskResult t r | (t, r) <
 partitionValidated :: [ValidatedTask] -> ([Task], [ValidatedTask])
 partitionValidated ts = ([t | (ValidTask t) <- ts], [i | i@(InvalidTask _ _) <- ts])
 
-partitionTasks :: [Task] -> ([Task], [Task], [Task])
+partitionTasks :: [Task] -> ([Task], [Task], [Task], [Task])
 partitionTasks = foldr go ([], [], [])
   where 
-    go t@(ClipTask _ _ _ _ _ _ _) (cs, ts, ms) = (t:cs, ts, ms)
-    go t@(TagTask _ _ _) (cs, ts, ms)          = (cs, t:ts, ms)
-    go t@(ManageTask _ _) (cs, ts, ms)         = (cs, ts, t:ms)
+    go t@(ClipTask _ _ _ _ _ _ _) (cs, ts, ms, ls) = (t:cs, ts, ms, ls)
+    go t@(TagTask _ _ _) (cs, ts, ms, ls)          = (cs, t:ts, ms, ls)
+    go t@(ManageTask _ _) (cs, ts, ms, ls)         = (cs, ts, t:ms, ls)
+    go t@(ListTask _ _) (cs, ts, ms, ls)           = (cs, ts, ms, t:ls)

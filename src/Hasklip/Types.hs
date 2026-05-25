@@ -18,6 +18,7 @@ import Data.Aeson (
     , camelTo2)
 import Data.Aeson.Types (Parser)
 import qualified Data.Text as T
+import Database.SQLite.Simple (FromRow(..), field)
 
 data Config = Config
     {
@@ -207,6 +208,8 @@ data QueryInfo
         TagQuery TagFields
     | -- | Manage existing clips
         ManageQuery ManageFields
+    | -- | Find all clips from a criteria (tags/name keyboard search)
+        ListQuery ListFields
     deriving (Show, Eq)
 
 data ClipFields = ClipFields
@@ -236,6 +239,26 @@ data ManageFields
             T.Text -- ^ Clip filepath
             [T.Text] -- ^ tags
     deriving (Show, Eq)
+
+data ListFields
+    =
+        TagSearchFields
+            T.Text   -- ^ id
+            [T.Text] -- ^ tags
+    |   NameSearchFields
+            T.Text -- ^ id
+            T.Text -- ^ name
+    deriving (Show, Eq)
+
+data ListResult
+    =
+        ListResult
+            T.Text
+            Maybe T.Text
+    deriving (Show, Eq)
+
+instance FromRow ListResult where
+    fromRow = ListResult <$> field <*> field
 
 data TaskResult 
     = 

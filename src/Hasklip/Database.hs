@@ -28,9 +28,10 @@ updateDatabase db qs = do
     mapM (runQuery conn) qs
 
 runQuery :: Connection -> QueryInfo -> IO TaskResult
-runQuery conn (ClipQuery f) = insertClip conn f
-runQuery conn (TagQuery f) = insertClipTags conn f
+runQuery conn (ClipQuery f)   = insertClip conn f
+runQuery conn (TagQuery f)    = insertClipTags conn f
 runQuery conn (ManageQuery f) = runManageQuery conn f
+runQuery conn (ListQuery f)   = runListQuery conn f
 
 insertClip :: Connection -> ClipFields -> IO TaskResult
 insertClip conn (ClipFields taskId path dur game tags) = do
@@ -171,3 +172,14 @@ removeClipTags conn tid fileName tags = do
     deleteQuery   = "DELETE FROM clip_tags WHERE clip_id = ? AND tag_id = ?"
     successMsg    = "Removed tag association with clip"
     failMsg       = "Could not find clip with that name"
+
+runListQuery :: Conn -> ListFields -> IO TaskResult
+runListQuery conn (TagSearchFields i tgs) = searchByTags conn i tgs
+runListQuery conn (NameSearchFields i n)  = searchByName conn i n
+
+searchByTags :: Conn -> T.Text -> [T.Text] -> IO ListResult
+searchByTags conn i tags = do
+  where
+    placeholders = intercalate "," (replicate (length tags) "?")
+    query        = 
+    params       = tags ++ [T.pack (show (length tags))]
