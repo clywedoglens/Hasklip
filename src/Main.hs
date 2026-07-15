@@ -11,8 +11,7 @@ import Hasklip.Types (
 import Hasklip.Validator (validateManifest)
 import Hasklip.Processor (processTasks)
 import Hasklip.Util (
-    displayText
-    , displayError
+    displayError
     , parseErrorMessage
     , taskId
     , partitionValidated
@@ -20,6 +19,7 @@ import Hasklip.Util (
     , summarizeTaskResults)
 
 import qualified Data.Text as T
+import System.Log.FastLogger (newFileLoggerSet, defaultBufSize, flushLogStr)
 
 main :: IO ()
 main = do
@@ -38,12 +38,18 @@ runHasklip config = do
                 (valid, invalid) = partitionValidated validated
                 invalidResults   = [invalidFail t es |(InvalidTask t es) <- invalid]
             results <- processTasks config valid
+            logEnv <- newFileLoggerSet defaultBufSize logFile
             let finalRes = results ++ invalidResults
                 tasks    = manifest_tasks manifest
                 pairs    = [(t, r) | t <- tasks, r <- finalRes, matchTaskId t r]
-                header   = "FINAL RESULTS\n"
-            displayText $ header <> (summarizeTaskResults pairs)
+            putStrLn $ "Results: " ++ (show results)
+            putStrLn $ "Final results: " ++ (show finalRes)
+            putStrLn $ "Pairs: " ++ (show pairs)
+            summarizeTaskResults clipsDir logEnv pairs
+            flushLogStr logEnv
   where
     manifestPath    = config_manifest config
     errString e     = map taskError_description e
     invalidFail t e = TaskFailure (taskId t) (T.intercalate "\n" $ errString e)
+    logFile         = config_logFile config
+    clipsDir        = T.pack $ config_clipsDir config

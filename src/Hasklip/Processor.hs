@@ -23,7 +23,7 @@ import System.Timeout (timeout)
 
 
 processTasks :: Config -> [Task] -> IO [TaskResult]
-processTasks (Config _ dbPath clipsDir reqPath resPath) ts = do
+processTasks (Config _ dbPath clipsDir reqPath resPath _) ts = do
     crs <- processClipArbeit reqPath resPath clipArbeit
     mrs <- processMgmtArbeit clipsDir mgmtArbeit
     let rs        = crs ++ mrs

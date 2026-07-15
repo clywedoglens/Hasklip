@@ -27,6 +27,7 @@ data Config = Config
     , config_clipsDir     :: FilePath
     , config_requestPipe  :: FilePath
     , config_responsePipe :: FilePath
+    , config_logFile      :: FilePath
     } deriving (Show, Eq)
 
 instance FromJSON Config where
@@ -36,6 +37,7 @@ instance FromJSON Config where
         <*> v .: "clipsDir"
         <*> v .: "requestPipe"
         <*> v .: "responsePipe"
+        <*> v .: "logFile"
 
 type ParseResult a = Either ParseError a
 
@@ -133,7 +135,7 @@ instance FromJSON ManageOp where
 
 instance FromJSON ListOp where
     parseJSON = withObject "operation" $ \v -> do
-        op .: "type" :: Parser T.Text
+        op <- v .: "type" :: Parser T.Text
         case op of
             "tagSearch"  -> TagSearch
                 <$> v .: "tags"
@@ -253,8 +255,8 @@ data ListFields
 data ListResult
     =
         ListResult
-            T.Text
-            Maybe T.Text
+            T.Text         -- ^ filepath
+            (Maybe T.Text) -- ^ game name
     deriving (Show, Eq)
 
 instance FromRow ListResult where

@@ -1,7 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Hasklip.Validator where
 
-import Hasklip.Types (Manifest(..), Task(..), ManageOp(..), TaskError(..), ValidatedTask(..))
+import Hasklip.Types (
+    Manifest(..)
+    , Task(..)
+    , ManageOp(..)
+    , ListOp(..)
+    , TaskError(..)
+    , ValidatedTask(..))
 import Hasklip.Util (nonEmpty)
 
 import qualified Data.Text as T
@@ -26,8 +32,8 @@ validateTask t =
                 validateListOp o
         errors = [TaskError desc | (desc, False) <- checks]
     in if null errors 
-        then ValidTask t 
-        else InvalidTask t errors
+            then ValidTask t 
+            else InvalidTask t errors
 
 validateStartEnd :: Int -> Int -> Bool
 validateStartEnd s e = e > s && s >= 0
@@ -49,7 +55,7 @@ validateManageOp (DeleteTag tag)      = [("Tag name cannot be empty", nonEmpty t
 validateManageOp (RemoveClipTags f t) = [("Clip path cannot be empty", nonEmpty f)
                                         , ("Tag name cannot be empty", validateTags t)]
 
-validateListOp :: ViewOp -> [(T.Text, Bool)]
+validateListOp :: ListOp -> [(T.Text, Bool)]
 validateListOp (TagSearch ts) = [("Must include tags", validateTags ts)]
 validateListOp (NameSearch n) = [("Search name cannot be empty", nonEmpty n)]
     

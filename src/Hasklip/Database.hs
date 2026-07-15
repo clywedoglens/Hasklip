@@ -7,9 +7,12 @@ import Hasklip.Types (
     , ClipFields(..)
     , TagFields(..)
     , ManageFields(..)
-    , TaskResult(..))
-import Hasklip.Util (displayError)
+    , ListFields(..)
+    , TaskResult(..)
+    , ListResult(..))
+import Hasklip.Util (displayText, displayError, buildPlaylist)
 
+import Data.List (intercalate)
 import Database.SQLite.Simple (
     Connection
     , open
@@ -18,7 +21,8 @@ import Database.SQLite.Simple (
     , query
     , changes
     , lastInsertRowId
-    , Only(..))
+    , Only(..)
+    , Query(..))
 import qualified Data.Text as T
 
 updateDatabase :: FilePath -> [QueryInfo] -> IO [TaskResult]
@@ -173,13 +177,47 @@ removeClipTags conn tid fileName tags = do
     successMsg    = "Removed tag association with clip"
     failMsg       = "Could not find clip with that name"
 
-runListQuery :: Conn -> ListFields -> IO TaskResult
-runListQuery conn (TagSearchFields i tgs) = searchByTags conn i tgs
-runListQuery conn (NameSearchFields i n)  = searchByName conn i n
-
-searchByTags :: Conn -> T.Text -> [T.Text] -> IO ListResult
-searchByTags conn i tags = do
+runListQuery :: Connection -> ListFields -> IO TaskResult
+runListQuery conn f = do
+    results <- case f of
+        (TagSearchFields i tgs) -> searchByTags conn i tgs
+        (NameSearchFields i n)  -> searchByName conn i n
+    if null results
+        then return $ TaskFailure taskId failMsg
+        else let playlist = buildPlaylist results
+             in return $ TaskSuccess taskId playlist
   where
-    placeholders = intercalate "," (replicate (length tags) "?")
-    query        = 
+    taskId                        = getId f
+    getId (TagSearchFields i tgs) = i
+    getId (NameSearchFields i n)  = i
+    failMsg                       = "No clips found"
+
+searchByTags :: Connection -> T.Text -> [T.Text] -> IO [ListResult]
+searchByTags conn i tags = do
+    -- putStrLn $ "Tags: " ++ show tags
+    -- putStrLn $ "Query: " ++ show searchQuery
+    -- putStrLn $ "Params: " ++ show (map T.unpack params)
+    -- rawRows <- query conn searchQuery params :: IO [(T.Text, Maybe T.Text)]
+    -- displayText $ "Raw rows: " <> (T.pack . show) rawRows
+    -- return (map (\(fp, gn) -> ListResult fp gn) rawRows)
+    query conn searchQuery params
+  where
+    searchQuery  = Query $ "SELECT c.file_path, g.name \
+                   \FROM clips c \
+                   \JOIN clip_tags ct ON c.id = ct.clip_id \
+                   \JOIN tags t ON ct.tag_id = t.id \
+                   \JOIN games g ON c.game_id = g.id \
+                   \WHERE t.name IN (" <> placeholders <> ") \
+                   \GROUP BY c.id \
+                   \HAVING COUNT(DISTINCT t.id) = CAST(? AS INTEGER)"
+    placeholders = T.intercalate "," (replicate (length tags) "?")
     params       = tags ++ [T.pack (show (length tags))]
+
+searchByName :: Connection -> T.Text -> T.Text -> IO [ListResult]
+searchByName conn i n = do
+    query conn searchQuery (Only n)
+  where
+    searchQuery = Query "SELECT c.file_path, g.name \
+                  \FROM clips c \
+                  \JOIN games g ON c.game_id = g.id \
+                  \WHERE c.file_path LIKE '%' || ? || '%';"

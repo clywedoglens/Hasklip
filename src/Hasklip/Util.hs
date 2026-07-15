@@ -5,18 +5,23 @@ import Hasklip.Types (
     ParseError(..)
     , Task(..)
     , ManageOp(..)
+    , ListOp(..)
     , TaskError(..)
     , ValidatedTask(..)
     , QueryInfo(..)
     , ClipFields(..)
     , TagFields(..)
     , ManageFields(..)
+    , ListFields(..)
     , ClipArbeit(..)
     , ArbeitResult(..)
+    , ListResult(..)
     , TaskResult(..))
 
 import Data.List (find)
+import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
+import System.Log.FastLogger (LoggerSet, pushLogStrLn, toLogStr)
 import System.IO (hPutStrLn, stderr)
 
 nonEmpty :: T.Text -> Bool
@@ -42,7 +47,7 @@ taskDesc :: Task -> T.Text
 taskDesc (ClipTask i _ _ _ _ _ _) = "Clip task id " <> i
 taskDesc (TagTask i _ _)          = "Tag task id " <> i
 taskDesc (ManageTask i o)         = "Manage task id " <> i <> (mgmtOpDesc o)
-taskDesc (ListTask i o)           = "List task id" <> i <> (listOpDesc o)
+taskDesc (ListTask i o)           = "List task id " <> i <> (listOpDesc o)
 
 mgmtOpDesc :: ManageOp -> T.Text
 mgmtOpDesc (DeleteClip _)       = " Delete clip"
@@ -50,8 +55,8 @@ mgmtOpDesc (DeleteTag _)        = " Delete tag"
 mgmtOpDesc (RemoveClipTags _ _) = " Remove clip tags"
 
 listOpDesc :: ListOp -> T.Text
-listOpDesc (TagSearch tgs) = "Tag search"
-listOpDesc (NameSearch n)  = "Name search"
+listOpDesc (TagSearch tgs) = " Tag search"
+listOpDesc (NameSearch n)  = " Name search"
 
 summarizeValidatedTasks :: [ValidatedTask] -> T.Text
 summarizeValidatedTasks vs = T.intercalate "\n" [validatedTaskSummary v | v <- vs]
@@ -99,13 +104,11 @@ matchTaskId t r =
 
 matchClipId :: ClipArbeit -> ArbeitResult -> Bool
 matchClipId c r = 
-    let
-        clipId   = clipArbeitId c
+    let clipId   = clipArbeitId c
         resultId = case r of
             (Erfolg i)   -> i
             (Fehler i _) -> i
-    in
-        clipId == resultId
+    in clipId == resultId
 
 summarizeClipResults :: [(ClipArbeit, ArbeitResult)] -> T.Text
 summarizeClipResults cs = T.intercalate "\n" [summarizeClipResult c r | (c, r) <- cs]
@@ -114,21 +117,34 @@ summarizeClipResults cs = T.intercalate "\n" [summarizeClipResult c r | (c, r) <
     summarizeClipResult c (Erfolg _)     = (clipText c) <> " successful conversion."
     summarizeClipResult c (Fehler _ msg) = (clipText c) <> " failed conversion.\n" <> msg
 
-summarizeTaskResults :: [(Task, TaskResult)] -> T.Text
-summarizeTaskResults ts = T.intercalate "\n" [summarizeTaskResult t r | (t, r) <- ts]
+summarizeTaskResults :: T.Text -> LoggerSet -> [(Task, TaskResult)] -> IO ()
+summarizeTaskResults dir logger = mapM_ summarize
   where
-    summarizeTaskResult t (TaskSuccess _ msg) = 
-      (taskDesc t) <> " was successful.\n" <> msg
-    summarizeTaskResult t (TaskFailure _ msg) =
-      (taskDesc t) <> " failed.\n" <> msg
+    summarize (t@(ListTask _ _), (TaskSuccess _ l)) = do
+        displayText $ dir <> l
+        pushLogStrLn logger (toLogStr $ (taskDesc t) <> " was successful.")
+    summarize (t, tr)                               = logTask t tr
+    logTask t (TaskSuccess _ msg) = do
+        pushLogStrLn logger (toLogStr $ (taskDesc t) <> " was successful.\n" <> msg)
+    logTask t (TaskFailure _ msg) = do
+        pushLogStrLn logger (toLogStr $ (taskDesc t) <> " failed.\n" <> msg)
 
 partitionValidated :: [ValidatedTask] -> ([Task], [ValidatedTask])
 partitionValidated ts = ([t | (ValidTask t) <- ts], [i | i@(InvalidTask _ _) <- ts])
 
 partitionTasks :: [Task] -> ([Task], [Task], [Task], [Task])
-partitionTasks = foldr go ([], [], [])
+partitionTasks = foldr go ([], [], [], [])
   where 
     go t@(ClipTask _ _ _ _ _ _ _) (cs, ts, ms, ls) = (t:cs, ts, ms, ls)
     go t@(TagTask _ _ _) (cs, ts, ms, ls)          = (cs, t:ts, ms, ls)
     go t@(ManageTask _ _) (cs, ts, ms, ls)         = (cs, ts, t:ms, ls)
     go t@(ListTask _ _) (cs, ts, ms, ls)           = (cs, ts, ms, t:ls)
+
+buildPlaylist :: [ListResult] -> T.Text
+buildPlaylist = T.intercalate "\n" . map buildResult
+  where
+    buildResult (ListResult fp g) = (gameDir $ fromMaybe "" g) <> fp
+    gameDir g                     = if T.null g
+                                        then g
+                                        else g <> "/"
+                                                    
