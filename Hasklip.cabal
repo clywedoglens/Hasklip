@@ -29,6 +29,7 @@ executable Hasklip
 
     default-language: Haskell2010
     build-depends:    base ^>=4.18.3.0 && < 5
+                      , fast-logger
                       , yaml
                       , aeson
                       , text
@@ -58,6 +59,7 @@ library
     ghc-options:      -Wall
     build-depends:
                       base ^>=4.18.3.0 && < 5
+                      , fast-logger
                       , aeson
                       , yaml
                       , text
