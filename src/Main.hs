@@ -42,9 +42,6 @@ runHasklip config = do
             let finalRes = results ++ invalidResults
                 tasks    = manifest_tasks manifest
                 pairs    = [(t, r) | t <- tasks, r <- finalRes, matchTaskId t r]
-            putStrLn $ "Results: " ++ (show results)
-            putStrLn $ "Final results: " ++ (show finalRes)
-            putStrLn $ "Pairs: " ++ (show pairs)
             summarizeTaskResults clipsDir logEnv pairs
             flushLogStr logEnv
   where
