@@ -194,12 +194,6 @@ runListQuery conn f = do
 
 searchByTags :: Connection -> T.Text -> [T.Text] -> IO [ListResult]
 searchByTags conn i tags = do
-    -- putStrLn $ "Tags: " ++ show tags
-    -- putStrLn $ "Query: " ++ show searchQuery
-    -- putStrLn $ "Params: " ++ show (map T.unpack params)
-    -- rawRows <- query conn searchQuery params :: IO [(T.Text, Maybe T.Text)]
-    -- displayText $ "Raw rows: " <> (T.pack . show) rawRows
-    -- return (map (\(fp, gn) -> ListResult fp gn) rawRows)
     query conn searchQuery params
   where
     searchQuery  = Query $ "SELECT c.file_path, g.name \
